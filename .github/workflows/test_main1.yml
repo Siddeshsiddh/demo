@@ -1,0 +1,46 @@
+name: CICDDEMO
+on:
+  push:
+    branches: [ "main" ]
+    paths:
+      - "test_app.py"
+      - "app.py"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt   # 👈 installs Flask and other libs
+
+      - name: Run unit tests (test_app.py)
+        run: python -m unittest -v app.py
+
+  deploy:
+    needs: test
+    if: ${{ needs.test.result == 'success' }}
+    runs-on: ubuntu-latest
+    
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Sync dev → production
+        run: |
+          git config user.name "${GITHUB_ACTOR}"
+          git config user.email "${GITHUB_ACTOR}@users.noreply.github.com"
+          git fetch origin
+          git checkout -B prod1
+          git reset --hard origin/main
+          git push origin prod1 --force
